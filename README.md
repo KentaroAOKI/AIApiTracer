@@ -24,7 +24,7 @@ Simply put, it's like [Cloudflare AI Gateway Logs](https://developers.cloudflare
 Start AIApiTracer using the Docker image (ghcr.io/Cysharp/AIApiTracer).
 
 ```bash
-docker run -p 8080:8080 ghcr.io/Cysharp/AIApiTracer:latest
+docker run -p 8080:8080 ghcr.io/cysharp/aiapitracer:latest
 ```
 
 Once started, you can view request traces by accessing `http://localhost:8080` in your web browser.
