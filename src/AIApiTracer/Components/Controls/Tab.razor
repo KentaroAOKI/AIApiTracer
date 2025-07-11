@@ -1,0 +1,27 @@
+@implements IDisposable
+
+<div class="@(_parent?.IsTabActive(this) == true ? "" : "hidden")">
+    @ChildContent
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    [CascadingParameter] private Tabs? _parent { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (_parent == null)
+        {
+            throw new InvalidOperationException("Tab component must be used inside a Tabs component.");
+        }
+
+        _parent.AddTab(this);
+    }
+
+    public void Dispose()
+    {
+        _parent?.RemoveTab(this);
+    }
+}

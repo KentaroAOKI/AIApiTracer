@@ -1,0 +1,67 @@
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<button type="button" class="text-sm text-blue-600 hover:text-blue-800 inline-flex items-center transition-all" @onclick="CopyToClipboard" disabled="@_isCopied">
+    @if (_isCopied)
+    {
+        <i class="icon-ic_fluent_checkmark_20_regular mr-1 text-base text-green-600"></i>
+        <span class="text-green-600">Copied!</span>
+    }
+    else
+    {
+        <i class="icon-ic_fluent_copy_20_regular mr-1 text-base"></i>
+        <span>@Label</span>
+    }
+</button>
+
+@code {
+    [Parameter, EditorRequired] public required string Content { get; set; }
+    [Parameter] public string Label { get; set; } = "Copy";
+
+    private bool _isCopied = false;
+    private CancellationTokenSource? _resetCts;
+
+    private async Task CopyToClipboard()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", Content);
+            
+            // Cancel any previous reset task
+            _resetCts?.Cancel();
+            _resetCts = new CancellationTokenSource();
+            
+            _isCopied = true;
+            StateHasChanged();
+            
+            // Reset after 2 seconds
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(2000, _resetCts.Token);
+                    await InvokeAsync(() =>
+                    {
+                        _isCopied = false;
+                        StateHasChanged();
+                    });
+                }
+                catch (TaskCanceledException)
+                {
+                    // Do nothing if cancelled
+                }
+            });
+        }
+        catch
+        {
+            // Do nothing if clipboard access is denied
+        }
+    }
+
+    public void Dispose()
+    {
+        _resetCts?.Cancel();
+        _resetCts?.Dispose();
+    }
+}

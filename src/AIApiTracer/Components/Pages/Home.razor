@@ -1,0 +1,613 @@
+@page "/"
+@using AIApiTracer.Models
+@using AIApiTracer.Services
+@using AIApiTracer.Services.MessageParsing
+@inject IApiTraceService ApiTraceService
+@inject IMessageParserFactory MessageParserFactory
+@implements IDisposable
+
+<PageTitle>AI API Tracer</PageTitle>
+
+<div class="min-h-screen bg-gray-50">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+        <h1 class="text-3xl font-bold text-gray-900">AI API Tracer</h1>
+        
+        <div class="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <span class="text-sm text-gray-500">Total requests: @_traces.Count</span>
+            </div>
+            <div class="mt-2 sm:mt-0 flex gap-2">
+                <button class="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" @onclick="RefreshTraces">
+                    <i class="icon-ic_fluent_arrow_sync_20_regular mr-1.5 text-base"></i>
+                    Refresh
+                </button>
+                <button class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500" @onclick="ClearTraces">
+                    <i class="icon-ic_fluent_delete_20_regular mr-1.5 text-base"></i>
+                    Clear All
+                </button>
+            </div>
+        </div>
+
+        @if (_traces.Any())
+        {
+            <div class="mt-6 overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-300">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Endpoint</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Path</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach (var trace in _traces)
+                            {
+                                <tr class="hover:bg-gray-50 cursor-pointer" @onclick="() => ToggleExpand(trace)">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <div class="flex items-center">
+                                            <i class="@(_expandedTraceIds.Contains(trace.Id) ? "icon-ic_fluent_chevron_down_20_regular" : "icon-ic_fluent_chevron_right_20_regular") mr-2 text-gray-400"></i>
+                                            @trace.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium @GetEndpointTailwindClass(GetEndpointType(trace))">
+                                            @GetEndpointType(trace)
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-gray-900 max-w-[150px] truncate" title="@(trace.AiMetadata?.Model ?? "-")">
+                                        @(trace.AiMetadata?.Model ?? "-")
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-gray-900 max-w-[400px] truncate" title="@GetTargetPath(trace)">
+                                        @GetTargetPath(trace)
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium @GetStatusTailwindClass(trace.StatusCode)">
+                                            @trace.StatusCode
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        @trace.Duration ms
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                        <button class="text-blue-600 hover:text-blue-900" @onclick:stopPropagation="true" @onclick="() => ShowDetails(trace)">
+                                            Details
+                                        </button>
+                                    </td>
+                                </tr>
+                                @if (_expandedTraceIds.Contains(trace.Id))
+                                {
+                                    <tr>
+                                        <td colspan="7" class="px-6 py-4 bg-gray-50">
+                                            <div class="space-y-4">
+                                                <!-- Toggle button for Raw/Parsed view -->
+                                                <div class="flex justify-end">
+                                                    <button 
+                                                        class="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border @(_showParsedData ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-gray-50 border-gray-300 text-gray-700") hover:bg-gray-100"
+                                                        @onclick="() => _showParsedData = !_showParsedData">
+                                                        <i class="@(_showParsedData ? "icon-ic_fluent_chat_bubbles_question_20_regular" : "icon-ic_fluent_code_20_regular") text-base"></i>
+                                                        @(_showParsedData ? "Parsed" : "Raw")
+                                                    </button>
+                                                </div>
+                                                
+                                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                                    @if (!string.IsNullOrEmpty(trace.Request.Body))
+                                                    {
+                                                        <div>
+                                                            <div class="flex items-center justify-between mb-2">
+                                                                <h5 class="text-sm font-medium text-gray-900">Request</h5>
+                                                                <CopyButton Content="@FormatJsonBody(trace.Request.Body)" />
+                                                            </div>
+                                                            @if (_showParsedData && CanParseRequest(trace))
+                                                            {
+                                                                var parsedData = GetParsedRequestData(trace);
+                                                                if (parsedData != null && parsedData.Messages.Any())
+                                                                {
+                                                                    <div class="bg-white border border-gray-200 rounded p-3 max-h-64 overflow-y-auto">
+                                                                        <MessageDisplay ParsedData="@parsedData" />
+                                                                    </div>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <pre class="bg-white border border-gray-200 p-3 rounded text-xs overflow-x-auto max-h-64 whitespace-pre-wrap break-words">@FormatJsonBody(trace.Request.Body)</pre>
+                                                                }
+                                                            }
+                                                            else
+                                                            {
+                                                                <pre class="bg-white border border-gray-200 p-3 rounded text-xs overflow-x-auto max-h-64 whitespace-pre-wrap break-words">@FormatJsonBody(trace.Request.Body)</pre>
+                                                            }
+                                                        </div>
+                                                    }
+                                                    @if (!string.IsNullOrEmpty(trace.Response.Body))
+                                                    {
+                                                        <div>
+                                                            <div class="flex items-center justify-between mb-2">
+                                                                <h5 class="text-sm font-medium text-gray-900">Response @(!string.IsNullOrEmpty(trace.Response.RawSseData) ? "(SSE Parsed)" : "")</h5>
+                                                                <CopyButton Content="@FormatJsonBody(trace.Response.Body)" />
+                                                            </div>
+                                                            @if (_showParsedData && CanParseResponse(trace))
+                                                            {
+                                                                var parsedData = GetParsedResponseData(trace);
+                                                                if (parsedData != null && parsedData.Messages.Any())
+                                                                {
+                                                                    <div class="bg-white border border-gray-200 rounded p-3 max-h-64 overflow-y-auto">
+                                                                        <MessageDisplay ParsedData="@parsedData" />
+                                                                    </div>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <pre class="bg-white border border-gray-200 p-3 rounded text-xs overflow-x-auto max-h-64 whitespace-pre-wrap break-words">@FormatJsonBody(trace.Response.Body)</pre>
+                                                                }
+                                                            }
+                                                            else
+                                                            {
+                                                                <pre class="bg-white border border-gray-200 p-3 rounded text-xs overflow-x-auto max-h-64 whitespace-pre-wrap break-words">@FormatJsonBody(trace.Response.Body)</pre>
+                                                            }
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                            
+                                            @if (trace.AiMetadata != null)
+                                            {
+                                                <div class="mt-4 p-4 bg-blue-50 rounded-lg">
+                                                    <dl class="space-y-1">
+                                                        <div class="flex items-center text-xs">
+                                                            <dt class="text-gray-600 w-24">Model:</dt>
+                                                            <dd class="text-gray-900">@trace.AiMetadata.Model</dd>
+                                                        </div>
+                                                        @if (trace.AiMetadata.Usage != null)
+                                                        {
+                                                            <div class="flex items-center text-xs">
+                                                                <dt class="text-gray-600 w-24">Tokens:</dt>
+                                                                <dd class="text-gray-900">
+                                                                    Input: @(trace.AiMetadata.Usage.InputTokens ?? 0)
+                                                                    | Output: @(trace.AiMetadata.Usage.OutputTokens ?? 0)
+                                                                    @if (trace.AiMetadata.Usage.TotalTokens > 0)
+                                                                    {
+                                                                        <span class="text-gray-500"> | Total: @trace.AiMetadata.Usage.TotalTokens</span>
+                                                                    }
+                                                                </dd>
+                                                            </div>
+                                                            @if (trace.AiMetadata.Usage.InputTokensCached > 0 || trace.AiMetadata.Usage.CacheCreationInputTokens > 0 || trace.AiMetadata.Usage.CacheReadInputTokens > 0)
+                                                            {
+                                                                <div class="flex items-center text-xs">
+                                                                    <dt class="text-gray-600 w-24">Cache:</dt>
+                                                                    <dd class="text-gray-900">
+                                                                        @if (trace.AiMetadata.Usage.InputTokensCached > 0 && trace.AiMetadata.Usage.CacheCreationInputTokens == null && trace.AiMetadata.Usage.CacheReadInputTokens == null)
+                                                                        {
+                                                                            <span>Cached: @trace.AiMetadata.Usage.InputTokensCached</span>
+                                                                        }
+                                                                        @if (trace.AiMetadata.Usage.CacheCreationInputTokens > 0)
+                                                                        {
+                                                                            <span>Creation: @trace.AiMetadata.Usage.CacheCreationInputTokens</span>
+                                                                        }
+                                                                        @if (trace.AiMetadata.Usage.CacheCreationInputTokens > 0 && trace.AiMetadata.Usage.CacheReadInputTokens > 0)
+                                                                        {
+                                                                            <span> | </span>
+                                                                        }
+                                                                        @if (trace.AiMetadata.Usage.CacheReadInputTokens > 0)
+                                                                        {
+                                                                            <span>Read: @trace.AiMetadata.Usage.CacheReadInputTokens</span>
+                                                                        }
+                                                                    </dd>
+                                                                </div>
+                                                            }
+                                                        }
+                                                    </dl>
+                                                </div>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="mt-6 bg-blue-50 border-l-4 border-blue-400 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="icon-ic_fluent_info_20_filled text-xl text-blue-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700">
+                            No API requests have been traced yet. Make some requests through the proxy endpoints to see them here.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Modal for showing request details -->
+@if (_selectedTrace != null)
+{
+    <div class="fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="fixed inset-0 transition-opacity" aria-hidden="true" @onclick="() => _selectedTrace = null">
+                <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+
+            <div class="relative bg-white rounded-lg text-left shadow-xl transform transition-all max-w-6xl w-full h-[90vh] flex flex-col">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 flex-shrink-0">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Request Details</h3>
+                        <button type="button" class="text-gray-400 hover:text-gray-500" @onclick="() => _selectedTrace = null">
+                            <span class="sr-only">Close</span>
+                            <i class="icon-ic_fluent_dismiss_20_regular text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="px-4 pb-4 sm:px-6 sm:pb-4 overflow-y-auto flex-1">
+                    <div class="space-y-4">
+                        <div>
+                            <h4 class="text-sm font-medium text-gray-900">General Information</h4>
+                            <dl class="mt-2 border-t border-gray-200 divide-y divide-gray-200">
+                                <div class="py-3 grid grid-cols-3 gap-4">
+                                    <dt class="text-sm font-medium text-gray-500">Timestamp</dt>
+                                    <dd class="text-sm text-gray-900 col-span-2">@_selectedTrace.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</dd>
+                                </div>
+                                <div class="py-3 grid grid-cols-3 gap-4">
+                                    <dt class="text-sm font-medium text-gray-500">Method</dt>
+                                    <dd class="text-sm text-gray-900 col-span-2">@_selectedTrace.Method</dd>
+                                </div>
+                                <div class="py-3 grid grid-cols-3 gap-4">
+                                    <dt class="text-sm font-medium text-gray-500">Request URL</dt>
+                                    <dd class="text-sm text-gray-900 col-span-2 break-all">@_selectedTrace.Url</dd>
+                                </div>
+                                <div class="py-3 grid grid-cols-3 gap-4">
+                                    <dt class="text-sm font-medium text-gray-500">Target URL</dt>
+                                    <dd class="text-sm text-gray-900 col-span-2 break-all">@_selectedTrace.TargetUrl</dd>
+                                </div>
+                                <div class="py-3 grid grid-cols-3 gap-4">
+                                    <dt class="text-sm font-medium text-gray-500">Status</dt>
+                                    <dd class="text-sm col-span-2">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium @GetStatusTailwindClass(_selectedTrace.StatusCode)">
+                                            @_selectedTrace.StatusCode
+                                        </span>
+                                    </dd>
+                                </div>
+                                <div class="py-3 grid grid-cols-3 gap-4">
+                                    <dt class="text-sm font-medium text-gray-500">Duration</dt>
+                                    <dd class="text-sm text-gray-900 col-span-2">@_selectedTrace.Duration ms</dd>
+                                </div>
+                                @if (_selectedTrace.AiMetadata != null)
+                                {
+                                    <div class="py-3 grid grid-cols-3 gap-4">
+                                        <dt class="text-sm font-medium text-gray-500">AI Model</dt>
+                                        <dd class="text-sm text-gray-900 col-span-2">@_selectedTrace.AiMetadata.Model</dd>
+                                    </div>
+                                    @if (_selectedTrace.AiMetadata.Usage != null)
+                                    {
+                                        <div class="py-3 grid grid-cols-3 gap-4">
+                                            <dt class="text-sm font-medium text-gray-500">Tokens</dt>
+                                            <dd class="text-sm text-gray-900 col-span-2">
+                                                Input: @(_selectedTrace.AiMetadata.Usage.InputTokens ?? 0)
+                                                | Output: @(_selectedTrace.AiMetadata.Usage.OutputTokens ?? 0)
+                                                @if (_selectedTrace.AiMetadata.Usage.TotalTokens > 0)
+                                                {
+                                                    <span class="text-gray-500"> | Total: @_selectedTrace.AiMetadata.Usage.TotalTokens</span>
+                                                }
+                                            </dd>
+                                        </div>
+                                        @if (_selectedTrace.AiMetadata.Usage.InputTokensCached > 0 || _selectedTrace.AiMetadata.Usage.CacheCreationInputTokens > 0 || _selectedTrace.AiMetadata.Usage.CacheReadInputTokens > 0)
+                                        {
+                                            <div class="py-3 grid grid-cols-3 gap-4">
+                                                <dt class="text-sm font-medium text-gray-500">Cache Tokens</dt>
+                                                <dd class="text-sm text-gray-900 col-span-2">
+                                                    @if (_selectedTrace.AiMetadata.Usage.InputTokensCached > 0 && _selectedTrace.AiMetadata.Usage.CacheCreationInputTokens == null && _selectedTrace.AiMetadata.Usage.CacheReadInputTokens == null)
+                                                    {
+                                                        <span>Cached: @_selectedTrace.AiMetadata.Usage.InputTokensCached</span>
+                                                    }
+                                                    @if (_selectedTrace.AiMetadata.Usage.CacheCreationInputTokens > 0)
+                                                    {
+                                                        <span>Cache Creation: @_selectedTrace.AiMetadata.Usage.CacheCreationInputTokens</span>
+                                                    }
+                                                    @if (_selectedTrace.AiMetadata.Usage.CacheCreationInputTokens > 0 && _selectedTrace.AiMetadata.Usage.CacheReadInputTokens > 0)
+                                                    {
+                                                        <span> | </span>
+                                                    }
+                                                    @if (_selectedTrace.AiMetadata.Usage.CacheReadInputTokens > 0)
+                                                    {
+                                                        <span>Cache Read: @_selectedTrace.AiMetadata.Usage.CacheReadInputTokens</span>
+                                                    }
+                                                </dd>
+                                            </div>
+                                        }
+                                    }
+                                }
+                            </dl>
+                        </div>
+
+                        <div>
+                            <Tabs>
+                                <Tab Title="Request">
+                                    <div class="space-y-4 pt-4">
+                                        <div>
+                                            <div class="flex items-center justify-between">
+                                                <h4 class="text-sm font-medium text-gray-900">Request Headers</h4>
+                                                <CopyButton Content="@FormatHeaders(_selectedTrace.Request.Headers)" />
+                                            </div>
+                                            <div class="mt-2">
+                                                <pre class="bg-gray-100 p-3 rounded text-xs overflow-x-auto">@FormatHeaders(_selectedTrace.Request.Headers)</pre>
+                                            </div>
+                                        </div>
+
+                                        @if (!string.IsNullOrEmpty(_selectedTrace.Request.Body))
+                                        {
+                                            <div>
+                                                <div class="flex items-center justify-between">
+                                                    <h4 class="text-sm font-medium text-gray-900">Request Body</h4>
+                                                    <CopyButton Content="@FormatJsonBody(_selectedTrace.Request.Body)" />
+                                                </div>
+                                                <div class="mt-2">
+                                                    <pre class="bg-gray-100 p-3 rounded text-xs overflow-x-auto max-h-96">@FormatJsonBody(_selectedTrace.Request.Body)</pre>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </Tab>
+                                <Tab Title="Response">
+                                    <div class="space-y-4 pt-4">
+                                        <div>
+                                            <div class="flex items-center justify-between">
+                                                <h4 class="text-sm font-medium text-gray-900">Response Headers</h4>
+                                                <CopyButton Content="@FormatHeaders(_selectedTrace.Response.Headers)" />
+                                            </div>
+                                            <div class="mt-2">
+                                                <pre class="bg-gray-100 p-3 rounded text-xs overflow-x-auto">@FormatHeaders(_selectedTrace.Response.Headers)</pre>
+                                            </div>
+                                        </div>
+
+                                        @if (!string.IsNullOrEmpty(_selectedTrace.Response.Body))
+                                        {
+                                            <div>
+                                                <div class="flex items-center justify-between">
+                                                    <h4 class="text-sm font-medium text-gray-900">Response Body @(!string.IsNullOrEmpty(_selectedTrace.Response.RawSseData) ? "(SSE Parsed)" : "")</h4>
+                                                    <CopyButton Content="@FormatJsonBody(_selectedTrace.Response.Body)" />
+                                                </div>
+                                                <div class="mt-2">
+                                                    <pre class="bg-gray-100 p-3 rounded text-xs overflow-x-auto max-h-96">@FormatJsonBody(_selectedTrace.Response.Body)</pre>
+                                                </div>
+                                            </div>
+                                        }
+                                        
+                                        @if (!string.IsNullOrEmpty(_selectedTrace.Response.RawSseData))
+                                        {
+                                            <div>
+                                                <div class="flex items-center justify-between">
+                                                    <h4 class="text-sm font-medium text-gray-900">Raw SSE Data</h4>
+                                                    <CopyButton Content="@_selectedTrace.Response.RawSseData" />
+                                                </div>
+                                                <div class="mt-2">
+                                                    <pre class="bg-gray-100 p-3 rounded text-xs overflow-x-auto max-h-96">@_selectedTrace.Response.RawSseData</pre>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </Tab>
+                            </Tabs>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse flex-shrink-0">
+                    <button type="button" class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm" @onclick="() => _selectedTrace = null">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ApiTraceRecord> _traces = new();
+    private ApiTraceRecord? _selectedTrace;
+    private Timer? _refreshTimer;
+    private HashSet<Guid> _expandedTraceIds = new();
+    private bool _showParsedData = true;
+    private Dictionary<Guid, ParsedMessageData?> _parsedRequestCache = new();
+    private Dictionary<Guid, ParsedMessageData?> _parsedResponseCache = new();
+
+    protected override void OnInitialized()
+    {
+        RefreshTraces();
+        // Auto-refresh every 2 seconds
+        _refreshTimer = new Timer(_ => InvokeAsync(RefreshTraces), null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+    }
+
+    private void RefreshTraces()
+    {
+        _traces = ApiTraceService.GetTraces().ToList();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void ClearTraces()
+    {
+        ApiTraceService.ClearTraces();
+        RefreshTraces();
+    }
+
+    private void ShowDetails(ApiTraceRecord trace)
+    {
+        _selectedTrace = trace;
+    }
+
+    private void ToggleExpand(ApiTraceRecord trace)
+    {
+        if (_expandedTraceIds.Contains(trace.Id))
+        {
+            _expandedTraceIds.Remove(trace.Id);
+        }
+        else
+        {
+            _expandedTraceIds.Add(trace.Id);
+        }
+    }
+
+    private string GetStatusTailwindClass(int statusCode)
+    {
+        return statusCode switch
+        {
+            >= 200 and < 300 => "bg-green-100 text-green-800",
+            >= 300 and < 400 => "bg-blue-100 text-blue-800",
+            >= 400 and < 500 => "bg-yellow-100 text-yellow-800",
+            >= 500 => "bg-red-100 text-red-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+
+
+    private string FormatHeaders(Dictionary<string, string[]> headers)
+    {
+        return string.Join("\n", headers.Select(h => $"{h.Key}: {string.Join(", ", h.Value)}"));
+    }
+
+    private string GetEndpointType(ApiTraceRecord trace)
+    {
+        if (string.IsNullOrEmpty(trace.Url))
+            return "Unknown";
+
+        var url = trace.Url.ToLower();
+        if (url.Contains("/endpoint/openai/"))
+            return "OpenAI";
+        else if (url.Contains("/endpoint/anthropic/"))
+            return "Anthropic";
+        else if (url.Contains("/endpoint/aoai/"))
+            return "Azure OpenAI";
+        else if (url.Contains("/endpoint/x/"))
+            return "xAI";
+        else if (url.Contains("/endpoint/openai-compat/"))
+            return "OpenAI Compatible";
+        else
+            return "Unknown";
+    }
+
+    private string GetEndpointTailwindClass(string endpointType)
+    {
+        return endpointType switch
+        {
+            "OpenAI" => "bg-green-100 text-green-800",
+            "Anthropic" => "bg-yellow-100 text-yellow-800",
+            "Azure OpenAI" => "bg-blue-100 text-blue-800",
+            "xAI" => "bg-gray-800 text-white",
+            "OpenAI Compatible" => "bg-purple-100 text-purple-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+
+
+    private string GetTargetPath(ApiTraceRecord trace)
+    {
+        if (string.IsNullOrEmpty(trace.TargetUrl))
+            return "-";
+
+        try
+        {
+            var uri = new Uri(trace.TargetUrl);
+            return uri.PathAndQuery;
+        }
+        catch
+        {
+            return trace.TargetUrl;
+        }
+    }
+
+    private string FormatJsonBody(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+            return body;
+
+        try
+        {
+            // Try to parse and format as JSON
+            using var doc = System.Text.Json.JsonDocument.Parse(body);
+            return System.Text.Json.JsonSerializer.Serialize(doc, new System.Text.Json.JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            });
+        }
+        catch
+        {
+            // Return as-is if not valid JSON
+            return body;
+        }
+    }
+
+    private bool CanParseRequest(ApiTraceRecord trace)
+    {
+        if (string.IsNullOrEmpty(trace.TargetUrl))
+            return false;
+            
+        var parser = MessageParserFactory.GetParser(trace.TargetUrl);
+        return parser != null;
+    }
+
+    private bool CanParseResponse(ApiTraceRecord trace)
+    {
+        if (string.IsNullOrEmpty(trace.TargetUrl))
+            return false;
+            
+        var parser = MessageParserFactory.GetParser(trace.TargetUrl);
+        return parser != null;
+    }
+
+    private ParsedMessageData? GetParsedRequestData(ApiTraceRecord trace)
+    {
+        if (!_parsedRequestCache.TryGetValue(trace.Id, out var cachedData))
+        {
+            var parser = MessageParserFactory.GetParser(trace.TargetUrl);
+            if (parser != null && !string.IsNullOrEmpty(trace.Request.Body))
+            {
+                try
+                {
+                    cachedData = parser.Parse(trace.Request.Body, isRequest: true);
+                }
+                catch
+                {
+                    cachedData = null;
+                }
+            }
+            _parsedRequestCache[trace.Id] = cachedData;
+        }
+        return cachedData;
+    }
+
+    private ParsedMessageData? GetParsedResponseData(ApiTraceRecord trace)
+    {
+        if (!_parsedResponseCache.TryGetValue(trace.Id, out var cachedData))
+        {
+            var parser = MessageParserFactory.GetParser(trace.TargetUrl);
+            if (parser != null && !string.IsNullOrEmpty(trace.Response.Body))
+            {
+                try
+                {
+                    cachedData = parser.Parse(trace.Response.Body, isRequest: false);
+                }
+                catch
+                {
+                    cachedData = null;
+                }
+            }
+            _parsedResponseCache[trace.Id] = cachedData;
+        }
+        return cachedData;
+    }
+
+    public void Dispose()
+    {
+        _refreshTimer?.Dispose();
+    }
+}

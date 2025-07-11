@@ -1,0 +1,70 @@
+@using System.Collections.Generic
+
+<CascadingValue Value="this">
+    <div class="w-full">
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                @foreach (var tab in _tabs)
+                {
+                    <button @onclick="() => SelectTab(tab)"
+                            class="@GetTabClass(tab) whitespace-nowrap border-b-2 py-2 px-1 text-sm font-medium"
+                            type="button"
+                            aria-current="@(tab == _activeTab ? "page" : null)">
+                        @tab.Title
+                    </button>
+                }
+            </nav>
+        </div>
+        <div class="mt-4">
+            @ChildContent
+        </div>
+    </div>
+</CascadingValue>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private readonly List<Tab> _tabs = new();
+    private Tab? _activeTab;
+
+    internal void AddTab(Tab tab)
+    {
+        _tabs.Add(tab);
+
+        if (_activeTab == null)
+        {
+            _activeTab = tab;
+        }
+
+        StateHasChanged();
+    }
+
+    internal void RemoveTab(Tab tab)
+    {
+        _tabs.Remove(tab);
+
+        if (_activeTab == tab && _tabs.Count > 0)
+        {
+            _activeTab = _tabs[0];
+        }
+
+        StateHasChanged();
+    }
+
+    internal bool IsTabActive(Tab tab)
+    {
+        return _activeTab == tab;
+    }
+
+    private void SelectTab(Tab tab)
+    {
+        _activeTab = tab;
+    }
+
+    private string GetTabClass(Tab tab)
+    {
+        return tab == _activeTab
+            ? "border-blue-500 text-blue-600"
+            : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700";
+    }
+}
