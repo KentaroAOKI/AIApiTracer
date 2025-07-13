@@ -1,54 +1,54 @@
-あなたは C# / .NET と Web アプリケーションの開発エキスパートであり、この AI リバースプロキシープロジェクトの開発を行うソフトウェアエンジニアです。
+You are a C# / .NET and web application development expert, and a software engineer working on this AI reverse proxy project.
 
-## プロジェクト概要
+## Project Overview
 
-AIApiTracerは、Blazor ServerとYARP (Yet Another Reverse Proxy)を使用して構築されたASP.NET Core Webアプリケーションです。複数のAI APIサービス（OpenAI、Anthropic、Azure OpenAI、xAI）へのリクエストをプロキシし、トレース・監視する機能を提供します。
+AIApiTracer is an ASP.NET Core web application built with Blazor Server and YARP (Yet Another Reverse Proxy). It provides functionality to proxy requests to multiple AI API services (OpenAI, Anthropic, Azure OpenAI, xAI) and trace/monitor them.
 
-## 技術スタック
+## Technology Stack
 
 * .NET 9
-* Blazor Server - インタラクティブなサーバーサイドレンダリングUI
-* YARP - リバースプロキシ機能
-* Tailwind CSS v4.1 - ユーティリティファーストCSSフレームワーク
-* Fluent System Icons - UIアイコンライブラリ
-* System.Net.ServerSentEvents - SSEレスポンスのパース
-* xUnit v3 - ユニットテストフレームワーク
+* Blazor Server - Interactive server-side rendering UI
+* YARP - Reverse proxy functionality
+* Tailwind CSS v4.1 - Utility-first CSS framework
+* Fluent System Icons - UI icon library
+* System.Net.ServerSentEvents - SSE response parsing
+* xUnit v3 - Unit testing framework
 
-## 主要なコマンド
+## Key Commands
 
 ```bash
-# プロジェクトをビルド (src/AIApiTracer 内で実行)
+# Build the project (run in src/AIApiTracer)
 dotnet build 
 
-# ソリューション全体でテストを実行 (リポジトリールートで実行)
+# Run tests for the entire solution (run in repository root)
 dotnet test AIApiTracer.slnx
 
-# テストを実行 (test/AIApiTracer.Test 内で実行)
+# Run tests (run in test/AIApiTracer.Test)
 dotnet test
 
-# CSS ビルド  (src/AIApiTracer 内で実行)
+# CSS build (run in src/AIApiTracer)
 npm run build-css:prod
 ```
 
-## 開発ガイドライン
+## Development Guidelines
 
-* UI やソースコード中のコメントは英語で記述してください
-* アーキテクチャーや機能については docs 以下にドキュメントとして記述されているので適宜確認してください
-  * architecture.md - アーキテクチャ
-  * features.md - 実装されている機能
-  * notes.md - 機能実装における注意点やメモ
-* 構成を変更した後には必ず `dotnet build` でビルドできることを確認してください
-  * `.razor` を編集した場合はプロジェクトのビルド、`.css` を編集した場合は CSS のビルドが必要です
-  * `.razor` 内の class を変更した場合には Tailwind CSS のビルドも実行する必要があります
-* 命名規則: .NET のフレームワークデザインガイドラインや .NET ランタイムを参考としてください
-  * `var` は積極的使用してください
-    * `UPPER_SNAKE_CASE` は使用しないください
-* C# コーディング: 可能な限り新しい C# バージョンの言語機能を使用してください
+* Write UI and source code comments in English
+* Refer to documentation under docs folder for architecture and features as needed
+  * architecture.md - Architecture
+  * features.md - Implemented features
+  * notes.md - Implementation notes and memos
+* Always ensure the project builds with `dotnet build` after making configuration changes
+  * Editing `.razor` files requires project build, editing `.css` files requires CSS build
+  * Changing classes in `.razor` files also requires Tailwind CSS build
+* Naming conventions: Follow .NET Framework Design Guidelines and .NET Runtime as reference
+  * Use `var` actively
+    * Do not use `UPPER_SNAKE_CASE`
+* C# coding: Use the latest C# version language features whenever possible
 
-## Git ワークフロー
-* コミットメッセージは英語で記述してください
+## Git Workflow
+* Write commit messages in English
 
-## 実装時における参考情報
+## Implementation Reference Information
 
-* Fluent System Icons は `fonts/FluentSystemIcons-Resizable.css` で読み込まれます
-  * アイコンの使用例: `<i class="icon-ic_fluent_copy_20_regular"></i>`
+* Fluent System Icons are loaded via `fonts/FluentSystemIcons-Resizable.css`
+  * Icon usage example: `<i class="icon-ic_fluent_copy_20_regular"></i>`
