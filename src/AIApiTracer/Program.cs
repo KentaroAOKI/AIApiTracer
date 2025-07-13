@@ -1,5 +1,6 @@
 using AIApiTracer.Components;
 using AIApiTracer.Middleware;
+using AIApiTracer.Models;
 using AIApiTracer.Services;
 using AIApiTracer.Services.MessageParsing;
 using AIApiTracer.Services.Metadata;
@@ -8,6 +9,10 @@ using AIApiTracer.Transformers;
 using Microsoft.AspNetCore.ResponseCompression;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure options
+builder.Services.Configure<AIApiTracerOptions>(
+    builder.Configuration.GetSection(AIApiTracerOptions.SectionName));
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -90,6 +95,9 @@ if (!app.Environment.IsDevelopment())
 
 // Add response compression
 app.UseResponseCompression();
+
+// Add OpenAI compatibility middleware before API trace
+app.UseMiddleware<OpenAICompatibilityMiddleware>();
 
 // Add API trace middleware before other middleware
 app.UseMiddleware<ApiTraceMiddleware>();

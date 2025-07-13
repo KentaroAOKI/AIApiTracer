@@ -101,6 +101,8 @@ var openAIClient = new OpenAIClient(new ApiKeyCredential(apiKey), new OpenAIClie
 #### OpenAI Compatible
 Specify `http://localhost:8080/endpoint/openai-compat/<openai-compatible-endpoint>` as the endpoint.
 
+⚠️ **Security Notice**: The OpenAI compatible endpoint is disabled by default for security reasons. You must explicitly enable it by setting the environment variable `AIApiTracer__EnableOpenAICompatForwarding` to `true`. When enabled, you should absolutely avoid making it accessible from external networks as it would become an open proxy.
+
 Specify the address of the OpenAI compatible API endpoint after `openai-compat/`, including the scheme. For example, use `http://localhost:8080/endpoint/openai-compat/http://localhost:5273/v1`.
 
 ```bash
