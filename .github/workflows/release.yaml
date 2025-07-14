@@ -87,5 +87,5 @@ jobs:
           ./AIApiTracer-linux-x64-${{ inputs.tag }}/AIApiTracer-linux-x64-${{ inputs.tag }}.zip
           ./AIApiTracer-linux-arm64-${{ inputs.tag }}/AIApiTracer-linux-arm64-${{ inputs.tag }}.zip
           ./AIApiTracer-osx-arm64-${{ inputs.tag }}/AIApiTracer-osx-arm64-${{ inputs.tag }}.zip
-      nuget-push: true
+      nuget-push: false
     secrets: inherit
