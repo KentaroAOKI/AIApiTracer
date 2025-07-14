@@ -82,10 +82,10 @@ jobs:
       release-format: '{0}'
       release-upload: true
       release-asset-path: |
-          ./AIApiTracer-win-x64-${{ inputs.tag }}.zip
-          ./AIApiTracer-win-arm64-${{ inputs.tag }}.zip
-          ./AIApiTracer-linux-x64-${{ inputs.tag }}.zip
-          ./AIApiTracer-linux-arm64-${{ inputs.tag }}.zip
-          ./AIApiTracer-osx-arm64-${{ inputs.tag }}.zip
+          ./AIApiTracer-win-x64-${{ inputs.tag }}/AIApiTracer-win-x64-${{ inputs.tag }}.zip
+          ./AIApiTracer-win-arm64-${{ inputs.tag }}/AIApiTracer-win-arm64-${{ inputs.tag }}.zip
+          ./AIApiTracer-linux-x64-${{ inputs.tag }}/AIApiTracer-linux-x64-${{ inputs.tag }}.zip
+          ./AIApiTracer-linux-arm64-${{ inputs.tag }}/AIApiTracer-linux-arm64-${{ inputs.tag }}.zip
+          ./AIApiTracer-osx-arm64-${{ inputs.tag }}/AIApiTracer-osx-arm64-${{ inputs.tag }}.zip
       nuget-push: true
     secrets: inherit
