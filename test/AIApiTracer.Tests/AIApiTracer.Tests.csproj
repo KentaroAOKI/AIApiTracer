@@ -41,6 +41,9 @@
     <None Update="Resoruces\anthropic-v1-messages_response_streaming.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Resoruces\anthropic-v1-messages_response_streaming.2.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

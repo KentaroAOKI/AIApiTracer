@@ -169,4 +169,75 @@ public class AnthropicSseParserTests
         Assert.Single(result.Content);
         Assert.Equal("Streaming test", result.Content[0].Text);
     }
+
+    [Fact]
+    public async Task ParseStreamToMessageAsync_WithToolUseResourceFile_ReturnsToolUseContent()
+    {
+        // Arrange
+        var resourcePath = Path.Combine(AppContext.BaseDirectory, "Resoruces", "anthropic-v1-messages_response_streaming.2.txt");
+        using var fileStream = File.OpenRead(resourcePath);
+
+        // Act
+        var result = await _parser.ParseStreamToMessageAsync(fileStream);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("msg_013YXJ9NL2C8CRZkG1WbJEAF", result.Id);
+        Assert.Equal("message", result.Type);
+        Assert.Equal("assistant", result.Role);
+        Assert.Equal("claude-opus-4-20250514", result.Model);
+        
+        // Check content - should have tool_use block
+        Assert.Single(result.Content);
+        var content = result.Content[0];
+        Assert.Equal("tool_use", content.Type);
+        Assert.Equal("toolu_01CYR9hmXVuMLbeusRgBeh8P", content.Id);
+        Assert.Equal("Read", content.Name);
+        Assert.NotNull(content.Input);
+        
+        // Check stop reason
+        Assert.Equal("tool_use", result.StopReason);
+        Assert.Null(result.StopSequence);
+        
+        // Check usage
+        Assert.NotNull(result.Usage);
+        Assert.Equal(6, result.Usage.InputTokens);
+        Assert.Equal(68, result.Usage.OutputTokens);  // Updated from message
+        Assert.Equal(1530, result.Usage.CacheCreationInputTokens);
+        Assert.Equal(14565, result.Usage.CacheReadInputTokens);
+        Assert.Equal("standard", result.Usage.ServiceTier);
+    }
+
+    [Fact]
+    public void ParseSseEvents_WithToolUseContent_ParsesCorrectly()
+    {
+        // Arrange
+        var events = new List<SseItem<string>>
+        {
+            new("""{"type":"message_start","message":{"id":"msg_tool","type":"message","role":"assistant","model":"claude-3","content":[]}}""", "message_start"),
+            new("""{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"tool_123","name":"TestTool","input":{}}}""", "content_block_start"),
+            new("""{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":""}}""", "content_block_delta"),
+            new("""{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"param\": \"value\""}}""", "content_block_delta"),
+            new("""{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"}"}}""", "content_block_delta"),
+            new("""{"type":"content_block_stop","index":0}""", "content_block_stop"),
+            new("""{"type":"message_delta","delta":{"stop_reason":"tool_use","stop_sequence":null},"usage":{"output_tokens":5}}""", "message_delta"),
+            new("""{"type":"message_stop"}""", "message_stop")
+        };
+
+        // Act
+        var result = _parser.ParseSseEvents(events);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("msg_tool", result.Id);
+        Assert.Single(result.Content);
+        
+        var toolContent = result.Content[0];
+        Assert.Equal("tool_use", toolContent.Type);
+        Assert.Equal("tool_123", toolContent.Id);
+        Assert.Equal("TestTool", toolContent.Name);
+        Assert.NotNull(toolContent.Input);
+        
+        Assert.Equal("tool_use", result.StopReason);
+    }
 }

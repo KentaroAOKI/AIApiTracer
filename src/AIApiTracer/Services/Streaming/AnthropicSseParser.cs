@@ -4,6 +4,47 @@ using System.Text.Json;
 
 namespace AIApiTracer.Services.Streaming;
 
+internal class ContentBlockBuilder
+{
+    public string Type { get; set; } = string.Empty;
+    public string? Id { get; set; }
+    public string? Name { get; set; }
+    public StringBuilder? TextBuilder { get; set; }
+    public StringBuilder? JsonBuilder { get; set; }
+
+    public ContentBlock Build()
+    {
+        var block = new ContentBlock
+        {
+            Type = Type,
+            Id = Id,
+            Name = Name
+        };
+
+        if (Type == "text" && TextBuilder != null)
+        {
+            block.Text = TextBuilder.ToString();
+        }
+        else if (Type == "tool_use" && JsonBuilder != null)
+        {
+            var jsonString = JsonBuilder.ToString();
+            if (!string.IsNullOrWhiteSpace(jsonString))
+            {
+                try
+                {
+                    block.Input = JsonSerializer.Deserialize<JsonElement>(jsonString);
+                }
+                catch
+                {
+                    block.Input = jsonString;
+                }
+            }
+        }
+
+        return block;
+    }
+}
+
 public interface IAnthropicSseParser
 {
     Task<Message> ParseStreamToMessageAsync(Stream stream);
@@ -32,7 +73,7 @@ public class AnthropicSseParser : IAnthropicSseParser, ISseParser
     public Message ParseSseEvents(IEnumerable<SseItem<string>> events)
     {
         var message = new Message();
-        var contentBlocks = new Dictionary<int, StringBuilder>();
+        var contentBlockBuilders = new Dictionary<int, ContentBlockBuilder>();
 
         foreach (var sseItem in events)
         {
@@ -43,26 +84,23 @@ public class AnthropicSseParser : IAnthropicSseParser, ISseParser
             if (string.IsNullOrEmpty(eventType) || string.IsNullOrEmpty(data))
                 continue;
 
-            ProcessEvent(eventType, data, message, contentBlocks);
+            ProcessEvent(eventType, data, message, contentBlockBuilders);
         }
 
         // Finalize content blocks
-        foreach (var kvp in contentBlocks.OrderBy(x => x.Key))
+        foreach (var kvp in contentBlockBuilders.OrderBy(x => x.Key))
         {
+            var builder = kvp.Value;
             if (message.Content.Count <= kvp.Key)
             {
-                message.Content.Add(new ContentBlock { Type = "text", Text = kvp.Value.ToString() });
-            }
-            else
-            {
-                message.Content[kvp.Key].Text = kvp.Value.ToString();
+                message.Content.Add(builder.Build());
             }
         }
 
         return message;
     }
 
-    private void ProcessEvent(string eventType, string dataJson, Message message, Dictionary<int, StringBuilder> contentBlocks)
+    private void ProcessEvent(string eventType, string dataJson, Message message, Dictionary<int, ContentBlockBuilder> contentBlockBuilders)
     {
         try
         {
@@ -82,17 +120,40 @@ public class AnthropicSseParser : IAnthropicSseParser, ISseParser
 
                 case "content_block_start":
                     var blockStart = JsonSerializer.Deserialize<ContentBlockStartEvent>(dataJson, JsonOptions);
-                    if (blockStart != null)
+                    if (blockStart?.ContentBlock != null)
                     {
-                        contentBlocks[blockStart.Index] = new StringBuilder();
+                        var blockBuilder = new ContentBlockBuilder
+                        {
+                            Type = blockStart.ContentBlock.Type,
+                            Id = blockStart.ContentBlock.Id,
+                            Name = blockStart.ContentBlock.Name
+                        };
+
+                        if (blockStart.ContentBlock.Type == "text")
+                        {
+                            blockBuilder.TextBuilder = new StringBuilder();
+                        }
+                        else if (blockStart.ContentBlock.Type == "tool_use")
+                        {
+                            blockBuilder.JsonBuilder = new StringBuilder();
+                        }
+
+                        contentBlockBuilders[blockStart.Index] = blockBuilder;
                     }
                     break;
 
                 case "content_block_delta":
                     var blockDelta = JsonSerializer.Deserialize<ContentBlockDeltaEvent>(dataJson, JsonOptions);
-                    if (blockDelta?.Delta?.Text != null && contentBlocks.ContainsKey(blockDelta.Index))
+                    if (blockDelta?.Delta != null && contentBlockBuilders.TryGetValue(blockDelta.Index, out var builder))
                     {
-                        contentBlocks[blockDelta.Index].Append(blockDelta.Delta.Text);
+                        if (blockDelta.Delta.Type == "text_delta" && blockDelta.Delta.Text != null && builder.TextBuilder != null)
+                        {
+                            builder.TextBuilder.Append(blockDelta.Delta.Text);
+                        }
+                        else if (blockDelta.Delta.Type == "input_json_delta" && blockDelta.Delta.PartialJson != null && builder.JsonBuilder != null)
+                        {
+                            builder.JsonBuilder.Append(blockDelta.Delta.PartialJson);
+                        }
                     }
                     break;
 
