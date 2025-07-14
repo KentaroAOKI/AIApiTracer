@@ -4,10 +4,12 @@ A reverse proxy for local development environments that intercepts requests to A
 
 Simply put, it's like [Cloudflare AI Gateway Logs](https://developers.cloudflare.com/ai-gateway/observability/logging/) specialized for local development environments. Note that it's not intended for auditing, monitoring, or team usage.
 
-![](docs/img/screen-01.png?)
+![](docs/img/screen-01.png)
+![](docs/img/screen-02.png)
 
 ## Features
 
+- Monitor locally without using external services
 - Human-readable display of requests and responses
 - Support for multiple AI services
     - OpenAI
@@ -19,17 +21,27 @@ Simply put, it's like [Cloudflare AI Gateway Logs](https://developers.cloudflare
 
 ## Quick Start
 
-### 1. Start AIApiTracer
+### 1. Run AIApiTracer
 
-Start AIApiTracer using the Docker image (ghcr.io/Cysharp/AIApiTracer).
+#### Using Docker
+Run AIApiTracer using the Docker image (ghcr.io/cysharp/aiapitracer).
 
 ```bash
 docker run -p 8080:8080 ghcr.io/cysharp/aiapitracer:latest
 ```
 
+#### Using pre-build binary
+
+You can download and run the pre-built application from the [Releases](./releases) page.
+
+```bash
+./AIApiTracer --urls http://localhost:8080/
+```
+
+### 2. Open in your browser
 Once started, you can view request traces by accessing `http://localhost:8080` in your web browser.
 
-### 2. Change Various Endpoints to AIApiTracer
+### 3. Change Various Endpoints to AIApiTracer
 
 #### OpenAI
 
@@ -127,8 +139,7 @@ var openAIClient = new OpenAIClient(new ApiKeyCredential(apiKey), new OpenAIClie
 ```
 
 ## TODO
-- [ ] Support for more AI services (Gemini)
-- [ ] Show about rate limit information
+- [ ] Support for more AI services (Google Vertex AI, Amazon Bedrock)
 
 ## License
 
