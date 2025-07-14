@@ -262,4 +262,49 @@ data: [DONE]";
         var choice = root.GetProperty("choices")[0];
         Assert.True(choice.TryGetProperty("content_filter_results", out _));
     }
+
+    [Fact]
+    public async Task ParseSseStreamAsync_WithToolCallsResourceFile_ReturnsToolCalls()
+    {
+        // Arrange
+        var resourcePath = Path.Combine(AppContext.BaseDirectory, "Resoruces", "openai-v1-completions_response_streaming.2.txt");
+        using var fileStream = File.OpenRead(resourcePath);
+
+        // Act
+        var result = await _parser.ParseSseStreamAsync(fileStream);
+
+        // Assert
+        Assert.NotNull(result);
+        var doc = JsonDocument.Parse(result);
+        var root = doc.RootElement;
+        
+        Assert.Equal("chatcmpl-BtAGVZwPwx7hgHZkm74Rzo1UNReX0", root.GetProperty("id").GetString());
+        Assert.Equal("gpt-4.1-mini-2025-04-14", root.GetProperty("model").GetString());
+        Assert.Equal("fp_6f2eabb9a5", root.GetProperty("system_fingerprint").GetString());
+        
+        // Check message has tool_calls
+        var message = root.GetProperty("choices")[0].GetProperty("message");
+        Assert.True(message.TryGetProperty("content", out var content));
+        Assert.Equal(JsonValueKind.Null, content.ValueKind);
+        
+        Assert.True(message.TryGetProperty("tool_calls", out var toolCalls));
+        Assert.Equal(1, toolCalls.GetArrayLength());
+        
+        var toolCall = toolCalls[0];
+        Assert.Equal("call_5J0YQaDfJ2i1oaafAZCyYwfX", toolCall.GetProperty("id").GetString());
+        Assert.Equal("function", toolCall.GetProperty("type").GetString());
+        
+        var function = toolCall.GetProperty("function");
+        Assert.Equal("get_current_weather", function.GetProperty("name").GetString());
+        Assert.Equal("{\"location\":\"Montreal\",\"unit\":\"metric\"}", function.GetProperty("arguments").GetString());
+        
+        // Check finish_reason
+        Assert.Equal("tool_calls", root.GetProperty("choices")[0].GetProperty("finish_reason").GetString());
+        
+        // Check usage
+        var usage = root.GetProperty("usage");
+        Assert.Equal(91, usage.GetProperty("prompt_tokens").GetInt32());
+        Assert.Equal(20, usage.GetProperty("completion_tokens").GetInt32());
+        Assert.Equal(111, usage.GetProperty("total_tokens").GetInt32());
+    }
 }
