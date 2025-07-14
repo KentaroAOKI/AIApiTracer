@@ -135,10 +135,48 @@ public class OpenAISseParser : ISseParser
                                     builder.ContentBuilder.Append(contentProp.GetString());
                                 }
 
+                                // Process tool_calls
+                                if (delta.TryGetProperty("tool_calls", out var toolCalls))
+                                {
+                                    foreach (var toolCall in toolCalls.EnumerateArray())
+                                    {
+                                        if (!toolCall.TryGetProperty("index", out var toolIndexProp))
+                                            continue;
+
+                                        var toolIndex = toolIndexProp.GetInt32();
+                                        
+                                        if (!builder.ToolCallBuilders.ContainsKey(toolIndex))
+                                        {
+                                            builder.ToolCallBuilders[toolIndex] = new ToolCallBuilder { Index = toolIndex };
+                                        }
+
+                                        var toolCallBuilder = builder.ToolCallBuilders[toolIndex];
+
+                                        // Extract tool call properties
+                                        if (toolCall.TryGetProperty("id", out var toolIdProp))
+                                            toolCallBuilder.Id = toolIdProp.GetString();
+                                        
+                                        if (toolCall.TryGetProperty("type", out var toolTypeProp))
+                                            toolCallBuilder.Type = toolTypeProp.GetString();
+                                        
+                                        if (toolCall.TryGetProperty("function", out var function))
+                                        {
+                                            if (function.TryGetProperty("name", out var nameProp))
+                                                toolCallBuilder.FunctionName = nameProp.GetString();
+                                            
+                                            if (function.TryGetProperty("arguments", out var argsProp) && 
+                                                argsProp.ValueKind == JsonValueKind.String)
+                                            {
+                                                toolCallBuilder.ArgumentsBuilder.Append(argsProp.GetString());
+                                            }
+                                        }
+                                    }
+                                }
+
                                 // Capture extra delta properties
                                 foreach (var prop in delta.EnumerateObject())
                                 {
-                                    if (prop.Name != "role" && prop.Name != "content")
+                                    if (prop.Name != "role" && prop.Name != "content" && prop.Name != "tool_calls")
                                     {
                                         builder.DeltaExtraProperties[prop.Name] = prop.Value.Clone();
                                     }
@@ -210,7 +248,36 @@ public class OpenAISseParser : ISseParser
             
             writer.WriteStartObject("message");
             writer.WriteString("role", kvp.Value.Role);
-            writer.WriteString("content", kvp.Value.ContentBuilder.ToString());
+            
+            var content = kvp.Value.ContentBuilder.ToString();
+            if (!string.IsNullOrEmpty(content))
+            {
+                writer.WriteString("content", content);
+            }
+            else
+            {
+                writer.WriteNull("content");
+            }
+            
+            // Write tool_calls if any
+            if (kvp.Value.ToolCallBuilders.Count > 0)
+            {
+                writer.WriteStartArray("tool_calls");
+                foreach (var toolKvp in kvp.Value.ToolCallBuilders.OrderBy(x => x.Key))
+                {
+                    writer.WriteStartObject();
+                    writer.WriteString("id", toolKvp.Value.Id ?? "");
+                    writer.WriteString("type", toolKvp.Value.Type ?? "function");
+                    
+                    writer.WriteStartObject("function");
+                    writer.WriteString("name", toolKvp.Value.FunctionName ?? "");
+                    writer.WriteString("arguments", toolKvp.Value.ArgumentsBuilder.ToString());
+                    writer.WriteEndObject(); // function
+                    
+                    writer.WriteEndObject(); // tool_call
+                }
+                writer.WriteEndArray(); // tool_calls
+            }
             
             // Write extra delta properties to message
             foreach (var prop in kvp.Value.DeltaExtraProperties)
@@ -263,6 +330,16 @@ public class OpenAISseParser : ISseParser
         public string? FinishReason { get; set; }
         public Dictionary<string, JsonElement> ExtraProperties { get; } = new();
         public Dictionary<string, JsonElement> DeltaExtraProperties { get; } = new();
+        public Dictionary<int, ToolCallBuilder> ToolCallBuilders { get; } = new();
+    }
+
+    private class ToolCallBuilder
+    {
+        public int Index { get; set; }
+        public string? Id { get; set; }
+        public string? Type { get; set; }
+        public string? FunctionName { get; set; }
+        public StringBuilder ArgumentsBuilder { get; } = new();
     }
 
     // Keep the ParseSseResponse method for testing
