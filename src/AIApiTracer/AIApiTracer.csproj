@@ -9,6 +9,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Remove="package.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="package.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="System.Net.ServerSentEvents" />
     <PackageReference Include="Yarp.ReverseProxy" />
   </ItemGroup>
