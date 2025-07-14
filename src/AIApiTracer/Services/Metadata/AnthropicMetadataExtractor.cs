@@ -52,7 +52,68 @@ public class AnthropicMetadataExtractor : BaseAiMetadataExtractor
             metadata.Extra["stop_reason"] = response.StopReason;
         }
 
+        // Extract rate limit information from headers
+        metadata.RateLimit = ExtractRateLimitInfo(responseHeaders);
+
         return metadata;
+    }
+
+    private RateLimitInfo? ExtractRateLimitInfo(Dictionary<string, string[]> responseHeaders)
+    {
+        if (responseHeaders == null || responseHeaders.Count == 0)
+            return null;
+
+        var rateLimitInfo = new RateLimitInfo();
+        var hasRateLimitData = false;
+
+        // Anthropic uses anthropic-ratelimit-* headers
+        if (TryGetHeaderValue(responseHeaders, "anthropic-ratelimit-requests-remaining", out var remainingRequests) && int.TryParse(remainingRequests, out var remainingRequestsInt))
+        {
+            rateLimitInfo.RemainingRequests = remainingRequestsInt;
+            hasRateLimitData = true;
+        }
+
+        if (TryGetHeaderValue(responseHeaders, "anthropic-ratelimit-requests-limit", out var limitRequests) && int.TryParse(limitRequests, out var limitRequestsInt))
+        {
+            rateLimitInfo.LimitRequests = limitRequestsInt;
+            hasRateLimitData = true;
+        }
+
+        if (TryGetHeaderValue(responseHeaders, "anthropic-ratelimit-tokens-remaining", out var remainingTokens) && int.TryParse(remainingTokens, out var remainingTokensInt))
+        {
+            rateLimitInfo.RemainingTokens = remainingTokensInt;
+            hasRateLimitData = true;
+        }
+
+        if (TryGetHeaderValue(responseHeaders, "anthropic-ratelimit-tokens-limit", out var limitTokens) && int.TryParse(limitTokens, out var limitTokensInt))
+        {
+            rateLimitInfo.LimitTokens = limitTokensInt;
+            hasRateLimitData = true;
+        }
+
+        // Extract reset timestamp for Anthropic
+        if (TryGetHeaderValue(responseHeaders, "anthropic-ratelimit-unified-reset", out var resetTimestamp) && long.TryParse(resetTimestamp, out var resetTimestampLong))
+        {
+            rateLimitInfo.ResetTimestamp = resetTimestampLong;
+            hasRateLimitData = true;
+        }
+
+        return hasRateLimitData ? rateLimitInfo : null;
+    }
+
+    private bool TryGetHeaderValue(Dictionary<string, string[]> headers, string headerName, out string? value)
+    {
+        value = null;
+        
+        // Try case-insensitive lookup
+        var key = headers.Keys.FirstOrDefault(k => k.Equals(headerName, StringComparison.OrdinalIgnoreCase));
+        if (key != null && headers.TryGetValue(key, out var values) && values?.Length > 0)
+        {
+            value = values[0];
+            return true;
+        }
+
+        return false;
     }
 
     private class AnthropicResponse

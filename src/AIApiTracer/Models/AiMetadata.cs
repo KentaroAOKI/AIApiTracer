@@ -16,6 +16,11 @@ public class AiMetadata
     public TokenUsage? Usage { get; set; }
 
     /// <summary>
+    /// Rate limit information
+    /// </summary>
+    public RateLimitInfo? RateLimit { get; set; }
+
+    /// <summary>
     /// Additional provider-specific metadata
     /// </summary>
     public Dictionary<string, object> Extra { get; set; } = new();
@@ -65,4 +70,42 @@ public class TokenUsage
     /// Number of cache read input tokens (Anthropic)
     /// </summary>
     public int? CacheReadInputTokens { get; set; }
+}
+
+/// <summary>
+/// Rate limit information from AI API responses
+/// </summary>
+public class RateLimitInfo
+{
+    /// <summary>
+    /// Remaining requests in the rate limit window
+    /// </summary>
+    public int? RemainingRequests { get; set; }
+
+    /// <summary>
+    /// Total request limit in the rate limit window
+    /// </summary>
+    public int? LimitRequests { get; set; }
+
+    /// <summary>
+    /// Remaining tokens in the rate limit window
+    /// </summary>
+    public int? RemainingTokens { get; set; }
+
+    /// <summary>
+    /// Total token limit in the rate limit window
+    /// </summary>
+    public int? LimitTokens { get; set; }
+
+    /// <summary>
+    /// Unix timestamp (seconds, UTC) when the rate limit will reset
+    /// </summary>
+    public long? ResetTimestamp { get; set; }
+
+    /// <summary>
+    /// Gets the reset time as a DateTime in UTC
+    /// </summary>
+    public DateTime? ResetTimeUtc => ResetTimestamp.HasValue 
+        ? DateTimeOffset.FromUnixTimeSeconds(ResetTimestamp.Value).UtcDateTime 
+        : null;
 }

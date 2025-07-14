@@ -198,6 +198,34 @@
                                                                 </div>
                                                             }
                                                         }
+                                                        @if (trace.AiMetadata.RateLimit != null)
+                                                        {
+                                                            <div class="flex items-center text-xs">
+                                                                <dt class="text-gray-600 w-24">Rate Limit:</dt>
+                                                                <dd class="text-gray-900">
+                                                                    @if (trace.AiMetadata.RateLimit.RemainingRequests != null && trace.AiMetadata.RateLimit.LimitRequests != null)
+                                                                    {
+                                                                        <span>Requests: @trace.AiMetadata.RateLimit.RemainingRequests/@trace.AiMetadata.RateLimit.LimitRequests</span>
+                                                                    }
+                                                                    @if (trace.AiMetadata.RateLimit.RemainingTokens != null && trace.AiMetadata.RateLimit.LimitTokens != null)
+                                                                    {
+                                                                        @if (trace.AiMetadata.RateLimit.RemainingRequests != null)
+                                                                        {
+                                                                            <span> | </span>
+                                                                        }
+                                                                        <span>Tokens: @trace.AiMetadata.RateLimit.RemainingTokens/@trace.AiMetadata.RateLimit.LimitTokens</span>
+                                                                    }
+                                                                    @if (trace.AiMetadata.RateLimit.ResetTimeUtc != null)
+                                                                    {
+                                                                        @if (trace.AiMetadata.RateLimit.RemainingRequests != null || trace.AiMetadata.RateLimit.RemainingTokens != null)
+                                                                        {
+                                                                            <span> | </span>
+                                                                        }
+                                                                        <span>Reset: @trace.AiMetadata.RateLimit.ResetTimeUtc.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")</span>
+                                                                    }
+                                                                </dd>
+                                                            </div>
+                                                        }
                                                     </dl>
                                                 </div>
                                             }

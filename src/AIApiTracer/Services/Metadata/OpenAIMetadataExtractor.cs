@@ -57,7 +57,61 @@ public class OpenAIMetadataExtractor : BaseAiMetadataExtractor
             }
         }
 
+        // Extract rate limit information from headers
+        metadata.RateLimit = ExtractRateLimitInfo(responseHeaders);
+
         return metadata;
+    }
+
+    private RateLimitInfo? ExtractRateLimitInfo(Dictionary<string, string[]> responseHeaders)
+    {
+        if (responseHeaders == null || responseHeaders.Count == 0)
+            return null;
+
+        var rateLimitInfo = new RateLimitInfo();
+        var hasRateLimitData = false;
+
+        // OpenAI and Azure OpenAI use x-ratelimit-* headers
+        if (TryGetHeaderValue(responseHeaders, "x-ratelimit-remaining-requests", out var remainingRequests) && int.TryParse(remainingRequests, out var remainingRequestsInt))
+        {
+            rateLimitInfo.RemainingRequests = remainingRequestsInt;
+            hasRateLimitData = true;
+        }
+
+        if (TryGetHeaderValue(responseHeaders, "x-ratelimit-limit-requests", out var limitRequests) && int.TryParse(limitRequests, out var limitRequestsInt))
+        {
+            rateLimitInfo.LimitRequests = limitRequestsInt;
+            hasRateLimitData = true;
+        }
+
+        if (TryGetHeaderValue(responseHeaders, "x-ratelimit-remaining-tokens", out var remainingTokens) && int.TryParse(remainingTokens, out var remainingTokensInt))
+        {
+            rateLimitInfo.RemainingTokens = remainingTokensInt;
+            hasRateLimitData = true;
+        }
+
+        if (TryGetHeaderValue(responseHeaders, "x-ratelimit-limit-tokens", out var limitTokens) && int.TryParse(limitTokens, out var limitTokensInt))
+        {
+            rateLimitInfo.LimitTokens = limitTokensInt;
+            hasRateLimitData = true;
+        }
+
+        return hasRateLimitData ? rateLimitInfo : null;
+    }
+
+    private bool TryGetHeaderValue(Dictionary<string, string[]> headers, string headerName, out string? value)
+    {
+        value = null;
+        
+        // Try case-insensitive lookup
+        var key = headers.Keys.FirstOrDefault(k => k.Equals(headerName, StringComparison.OrdinalIgnoreCase));
+        if (key != null && headers.TryGetValue(key, out var values) && values?.Length > 0)
+        {
+            value = values[0];
+            return true;
+        }
+
+        return false;
     }
 
     private class OpenAIResponse
