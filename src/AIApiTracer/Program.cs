@@ -6,6 +6,7 @@ using AIApiTracer.Services.MessageParsing;
 using AIApiTracer.Services.Metadata;
 using AIApiTracer.Services.Streaming;
 using AIApiTracer.Transformers;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.ResponseCompression;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +14,10 @@ var builder = WebApplication.CreateBuilder(args);
 // Configure options
 builder.Services.Configure<AIApiTracerOptions>(
     builder.Configuration.GetSection(AIApiTracerOptions.SectionName));
+
+// Configure Data Protection
+builder.Services.AddDataProtection()
+    .SetApplicationName("AIApiTracer");
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
