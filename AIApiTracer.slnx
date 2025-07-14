@@ -6,6 +6,7 @@
   </Folder>
   <Folder Name="/Solution Items/GitHub Actions/">
     <File Path=".github/workflows/build.yaml" />
+    <File Path=".github/workflows/release.yaml" />
   </Folder>
   <Project Path="src/AIApiTracer/AIApiTracer.csproj" />
   <Project Path="test/AIApiTracer.Tests/AIApiTracer.Tests.csproj" />
