@@ -32,7 +32,7 @@ docker run -p 8080:8080 ghcr.io/cysharp/aiapitracer:latest
 
 #### Using pre-build binary
 
-You can download and run the pre-built application from the [Releases](./releases) page.
+You can download and run the pre-built application from the [Releases](https://github.com/Cysharp/AIApiTracer/releases) page.
 
 ```bash
 ./AIApiTracer --urls http://localhost:8080/
