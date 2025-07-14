@@ -88,7 +88,16 @@ public class ContentBlock
     public string Type { get; set; } = string.Empty;
 
     [JsonPropertyName("text")]
-    public string Text { get; set; } = string.Empty;
+    public string? Text { get; set; }
+
+    [JsonPropertyName("id")]
+    public string? Id { get; set; }
+
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("input")]
+    public object? Input { get; set; }
 }
 
 public class Delta
@@ -98,6 +107,9 @@ public class Delta
 
     [JsonPropertyName("text")]
     public string? Text { get; set; }
+
+    [JsonPropertyName("partial_json")]
+    public string? PartialJson { get; set; }
 }
 
 public class MessageDelta
