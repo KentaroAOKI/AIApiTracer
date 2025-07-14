@@ -1,0 +1,51 @@
+name: Build and run tests
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "!*" # not a tag push
+    paths-ignore:
+      - '**.md'
+      - .github/**
+      - docs/**
+  pull_request:
+    branches:
+      - main
+      - release/**
+    paths-ignore:
+      - '**.md'
+      - .github/**
+      - docs/**
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build and Run tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
+      - run: dotnet test -c Release
+
+  publish-executables:
+    name: Publish Executables
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rid: [win-x64, win-arm64, linux-x64, linux-arm64, osx-arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
+      - name: Publish Executable
+        run:  dotnet publish src/AIApiTracer -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -o ./publish/${{ matrix.rid }}
+      - name: Create ZIP file
+        run: |
+          cd ./publish/${{ matrix.rid }}
+          zip -r ../AIApiTracer-${{ matrix.rid }}-${{ inputs.tag }}.zip .
+      - uses: Cysharp/Actions/.github/actions/upload-artifact@main
+        with:
+          name: AIApiTracer-${{ matrix.rid }}-${{ inputs.tag }}
+          path: ./publish/AIApiTracer-${{ matrix.rid }}-${{ inputs.tag }}.zip
+          retention-days: 1
