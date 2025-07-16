@@ -57,20 +57,22 @@ public class OpenAIMessageParser : BaseMessageParser
                 var message = ParseMessage(messageElement);
                 if (message != null)
                 {
-                    result.Messages.Add(message);
-                }
-
-                // Check for tool calls in assistant messages
-                if (messageElement.TryGetProperty("tool_calls", out var toolCallsElement))
-                {
-                    foreach (var toolCallElement in toolCallsElement.EnumerateArray())
+                    // Check for tool calls in assistant messages
+                    if (messageElement.TryGetProperty("tool_calls", out var toolCallsElement))
                     {
-                        var toolCall = ParseToolCall(toolCallElement);
-                        if (toolCall != null)
+                        message.ToolCalls = new List<ParsedToolCall>();
+                        foreach (var toolCallElement in toolCallsElement.EnumerateArray())
                         {
-                            result.ToolCalls.Add(toolCall);
+                            var toolCall = ParseToolCall(toolCallElement);
+                            if (toolCall != null)
+                            {
+                                message.ToolCalls.Add(toolCall);
+                                result.ToolCalls.Add(toolCall); // Keep in result for backward compatibility
+                            }
                         }
                     }
+                    
+                    result.Messages.Add(message);
                 }
             }
         }
@@ -92,20 +94,22 @@ public class OpenAIMessageParser : BaseMessageParser
                     var message = ParseMessage(messageElement);
                     if (message != null)
                     {
-                        result.Messages.Add(message);
-                    }
-
-                    // Check for tool calls
-                    if (messageElement.TryGetProperty("tool_calls", out var toolCallsElement))
-                    {
-                        foreach (var toolCallElement in toolCallsElement.EnumerateArray())
+                        // Check for tool calls
+                        if (messageElement.TryGetProperty("tool_calls", out var toolCallsElement))
                         {
-                            var toolCall = ParseToolCall(toolCallElement);
-                            if (toolCall != null)
+                            message.ToolCalls = new List<ParsedToolCall>();
+                            foreach (var toolCallElement in toolCallsElement.EnumerateArray())
                             {
-                                result.ToolCalls.Add(toolCall);
+                                var toolCall = ParseToolCall(toolCallElement);
+                                if (toolCall != null)
+                                {
+                                    message.ToolCalls.Add(toolCall);
+                                    result.ToolCalls.Add(toolCall); // Keep in result for backward compatibility
+                                }
                             }
                         }
+                        
+                        result.Messages.Add(message);
                     }
                 }
 
@@ -115,20 +119,22 @@ public class OpenAIMessageParser : BaseMessageParser
                     var message = ParseMessage(deltaElement);
                     if (message != null)
                     {
-                        result.Messages.Add(message);
-                    }
-
-                    // Check for tool calls in delta
-                    if (deltaElement.TryGetProperty("tool_calls", out var toolCallsElement))
-                    {
-                        foreach (var toolCallElement in toolCallsElement.EnumerateArray())
+                        // Check for tool calls in delta
+                        if (deltaElement.TryGetProperty("tool_calls", out var toolCallsElement))
                         {
-                            var toolCall = ParseToolCall(toolCallElement);
-                            if (toolCall != null)
+                            message.ToolCalls = new List<ParsedToolCall>();
+                            foreach (var toolCallElement in toolCallsElement.EnumerateArray())
                             {
-                                result.ToolCalls.Add(toolCall);
+                                var toolCall = ParseToolCall(toolCallElement);
+                                if (toolCall != null)
+                                {
+                                    message.ToolCalls.Add(toolCall);
+                                    result.ToolCalls.Add(toolCall); // Keep in result for backward compatibility
+                                }
                             }
                         }
+                        
+                        result.Messages.Add(message);
                     }
                 }
             }
@@ -167,6 +173,21 @@ public class OpenAIMessageParser : BaseMessageParser
                     }
                 }
             }
+        }
+
+        // Extract other properties (like tool_call_id for tool messages)
+        var knownFields = new HashSet<string> { "role", "content", "tool_calls" };
+        var otherData = new Dictionary<string, JsonElement>();
+        foreach (var property in messageElement.EnumerateObject())
+        {
+            if (!knownFields.Contains(property.Name))
+            {
+                otherData[property.Name] = property.Value.Clone();
+            }
+        }
+        if (otherData.Count > 0)
+        {
+            message.OtherData = otherData;
         }
 
         return message;

@@ -120,6 +120,7 @@ public class AnthropicMessageParser : BaseMessageParser
             };
 
             message.ContentParts = new List<ContentPart>();
+            var toolCalls = new List<ParsedToolCall>();
 
             foreach (var contentBlock in contentElement.EnumerateArray())
             {
@@ -141,7 +142,26 @@ public class AnthropicMessageParser : BaseMessageParser
                         var toolCall = ParseToolUse(contentBlock);
                         if (toolCall != null)
                         {
-                            result.ToolCalls.Add(toolCall);
+                            toolCalls.Add(toolCall);
+                            result.ToolCalls.Add(toolCall); // Keep in result for backward compatibility
+                            
+                            // Also add to content parts for display
+                            var part = new ContentPart
+                            {
+                                Type = "tool_use",
+                                OtherData = new Dictionary<string, JsonElement>
+                                {
+                                    ["id"] = JsonDocument.Parse($"\"{toolCall.Id}\"").RootElement,
+                                    ["name"] = JsonDocument.Parse($"\"{toolCall.Name}\"").RootElement
+                                }
+                            };
+                            
+                            if (toolCall.Arguments != null)
+                            {
+                                part.OtherData["input"] = toolCall.Arguments.Value.Clone();
+                            }
+                            
+                            message.ContentParts.Add(part);
                         }
                     }
                     else
@@ -175,6 +195,12 @@ public class AnthropicMessageParser : BaseMessageParser
             else if (textParts.Count > 1)
             {
                 message.Content = string.Join("\n", textParts.Select(p => p.Text));
+            }
+
+            // Add tool calls to message if any
+            if (toolCalls.Count > 0)
+            {
+                message.ToolCalls = toolCalls;
             }
 
             result.Messages.Add(message);

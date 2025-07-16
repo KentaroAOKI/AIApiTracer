@@ -1,0 +1,53 @@
+@using System.Text.Json
+
+<div class="border border-green-200 rounded-lg p-3 bg-green-50">
+    <div class="flex items-center gap-2 mb-2">
+        <i class="icon-ic_fluent_checkmark_circle_20_regular text-green-600"></i>
+        <span class="text-sm font-medium text-green-900">Tool Result</span>
+        @if (!string.IsNullOrEmpty(ToolCallId))
+        {
+            <span class="text-xs text-green-600">(@ToolCallId)</span>
+        }
+    </div>
+    
+    @if (!string.IsNullOrEmpty(TextResult))
+    {
+        <div class="mt-2">
+            <div class="text-xs font-medium text-gray-600 mb-1">Result:</div>
+            <div class="text-sm text-gray-800 whitespace-pre-wrap bg-white p-2 rounded border border-gray-200">@TextResult</div>
+        </div>
+    }
+    else if (JsonResult != null)
+    {
+        <div class="mt-2">
+            <div class="text-xs font-medium text-gray-600 mb-1">Result:</div>
+            <pre class="text-xs bg-white p-2 rounded border border-gray-200 overflow-x-auto">@FormatJson(JsonResult.Value)</pre>
+        </div>
+    }
+    
+    @if (IsError)
+    {
+        <div class="mt-2">
+            <span class="text-xs text-red-600 font-medium">⚠️ Error Result</span>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? ToolCallId { get; set; }
+    [Parameter] public string? TextResult { get; set; }
+    [Parameter] public JsonElement? JsonResult { get; set; }
+    [Parameter] public bool IsError { get; set; }
+    
+    private string FormatJson(JsonElement element)
+    {
+        try
+        {
+            return JsonSerializer.Serialize(element, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            return element.ToString();
+        }
+    }
+}

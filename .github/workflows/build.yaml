@@ -34,6 +34,7 @@ jobs:
 
   publish-executables:
     name: Publish Executables
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
     runs-on: ubuntu-24.04

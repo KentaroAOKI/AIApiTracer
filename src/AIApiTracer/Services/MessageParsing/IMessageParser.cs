@@ -39,6 +39,8 @@ public class ParsedMessage
     public string Role { get; set; } = string.Empty;
     public string? Content { get; set; }
     public List<ContentPart>? ContentParts { get; set; }
+    public List<ParsedToolCall>? ToolCalls { get; set; }
+    public Dictionary<string, JsonElement>? OtherData { get; set; }
 }
 
 /// <summary>

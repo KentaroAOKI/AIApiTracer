@@ -315,4 +315,175 @@ public class AnthropicMessageParserTests
         Assert.Empty(result.ToolCalls);
         Assert.Empty(result.OtherData);
     }
+
+    [Fact]
+    public void Parse_ResponseWithToolUse_AttachesToolCallsToMessage()
+    {
+        // Arrange
+        var json = """
+        {
+            "id": "msg_123",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-3-opus",
+            "content": [
+                {"type": "text", "text": "I'll help you with the weather and time."},
+                {
+                    "type": "tool_use",
+                    "id": "toolu_weather",
+                    "name": "get_weather",
+                    "input": {"location": "Tokyo"}
+                },
+                {
+                    "type": "tool_use",
+                    "id": "toolu_time",
+                    "name": "get_time",
+                    "input": {"timezone": "JST"}
+                }
+            ],
+            "stop_reason": "tool_use"
+        }
+        """;
+
+        // Act
+        var result = _parser.Parse(json, isRequest: false);
+
+        // Assert
+        Assert.Single(result.Messages);
+        var message = result.Messages[0];
+        Assert.NotNull(message.ContentParts);
+        Assert.Equal(3, message.ContentParts.Count); // 1 text + 2 tool_use
+        Assert.Equal("text", message.ContentParts[0].Type);
+        Assert.Equal("tool_use", message.ContentParts[1].Type);
+        Assert.Equal("tool_use", message.ContentParts[2].Type);
+        
+        Assert.NotNull(message.ToolCalls);
+        Assert.Equal(2, message.ToolCalls.Count);
+        
+        // First tool call
+        Assert.Equal("toolu_weather", message.ToolCalls[0].Id);
+        Assert.Equal("get_weather", message.ToolCalls[0].Name);
+        
+        // Second tool call
+        Assert.Equal("toolu_time", message.ToolCalls[1].Id);
+        Assert.Equal("get_time", message.ToolCalls[1].Name);
+        
+        // Also check backward compatibility
+        Assert.Equal(2, result.ToolCalls.Count);
+    }
+
+    [Fact]
+    public void Parse_ResponseWithMixedContent_HandlesCorrectly()
+    {
+        // Arrange
+        var json = """
+        {
+            "id": "msg_123",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-3-opus",
+            "content": [
+                {"type": "text", "text": "Let me search for that information."},
+                {
+                    "type": "tool_use",
+                    "id": "toolu_search",
+                    "name": "web_search",
+                    "input": {"query": "latest news"}
+                },
+                {"type": "text", "text": "While I search, here's what I know..."},
+                {
+                    "type": "unknown_type",
+                    "data": "some data"
+                }
+            ],
+            "stop_reason": "tool_use"
+        }
+        """;
+
+        // Act
+        var result = _parser.Parse(json, isRequest: false);
+
+        // Assert
+        Assert.Single(result.Messages);
+        var message = result.Messages[0];
+        
+        // Check content is combined
+        Assert.Equal("Let me search for that information.\nWhile I search, here's what I know...", message.Content);
+        
+        // Check all content parts are preserved
+        Assert.NotNull(message.ContentParts);
+        Assert.Equal(4, message.ContentParts.Count); // 2 text + 1 tool_use + 1 unknown_type
+        
+        // Check tool calls
+        Assert.NotNull(message.ToolCalls);
+        Assert.Single(message.ToolCalls);
+        Assert.Equal("toolu_search", message.ToolCalls[0].Id);
+        Assert.Equal("web_search", message.ToolCalls[0].Name);
+    }
+
+    [Fact]
+    public void Parse_ResponseWithOnlyToolUse_AttachesToolCallsToMessage()
+    {
+        // Arrange
+        var json = """
+        {
+            "id": "msg_123",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-3-opus",
+            "content": [
+                {
+                    "type": "tool_use",
+                    "id": "toolu_calc",
+                    "name": "calculator",
+                    "input": {"expression": "2 + 2"}
+                }
+            ],
+            "stop_reason": "tool_use"
+        }
+        """;
+
+        // Act
+        var result = _parser.Parse(json, isRequest: false);
+
+        // Assert
+        Assert.Single(result.Messages);
+        var message = result.Messages[0];
+        Assert.Null(message.Content); // No text content
+        Assert.NotNull(message.ContentParts);
+        Assert.Single(message.ContentParts); // Has tool_use content part
+        Assert.Equal("tool_use", message.ContentParts[0].Type);
+        Assert.NotNull(message.ToolCalls);
+        Assert.Single(message.ToolCalls);
+        Assert.Equal("toolu_calc", message.ToolCalls[0].Id);
+        Assert.Equal("calculator", message.ToolCalls[0].Name);
+    }
+
+    [Fact]
+    public void Parse_ResponseWithoutToolUse_NoToolCallsAttached()
+    {
+        // Arrange
+        var json = """
+        {
+            "id": "msg_123",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-3-opus",
+            "content": [
+                {"type": "text", "text": "This is a simple text response."}
+            ],
+            "stop_reason": "end_turn"
+        }
+        """;
+
+        // Act
+        var result = _parser.Parse(json, isRequest: false);
+
+        // Assert
+        Assert.Single(result.Messages);
+        var message = result.Messages[0];
+        Assert.Equal("This is a simple text response.", message.Content);
+        Assert.Null(message.ToolCalls); // No tool calls
+        Assert.Empty(result.ToolCalls); // No tool calls in result either
+    }
 }
