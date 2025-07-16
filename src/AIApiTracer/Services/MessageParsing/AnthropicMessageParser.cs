@@ -144,6 +144,24 @@ public class AnthropicMessageParser : BaseMessageParser
                         {
                             toolCalls.Add(toolCall);
                             result.ToolCalls.Add(toolCall); // Keep in result for backward compatibility
+                            
+                            // Also add to content parts for display
+                            var part = new ContentPart
+                            {
+                                Type = "tool_use",
+                                OtherData = new Dictionary<string, JsonElement>
+                                {
+                                    ["id"] = JsonDocument.Parse($"\"{toolCall.Id}\"").RootElement,
+                                    ["name"] = JsonDocument.Parse($"\"{toolCall.Name}\"").RootElement
+                                }
+                            };
+                            
+                            if (toolCall.Arguments != null)
+                            {
+                                part.OtherData["input"] = toolCall.Arguments.Value.Clone();
+                            }
+                            
+                            message.ContentParts.Add(part);
                         }
                     }
                     else

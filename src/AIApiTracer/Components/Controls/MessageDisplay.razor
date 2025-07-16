@@ -7,17 +7,26 @@
         <div class="space-y-2">
             @foreach (var message in ParsedData.Messages)
             {
-                <div class="border border-gray-200 rounded-lg p-3 bg-gray-50">
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="text-xs font-medium px-2 py-1 rounded @GetRoleClass(message.Role)">
-                            @message.Role
-                        </span>
-                    </div>
-                    
-                    @if (!string.IsNullOrEmpty(message.Content))
-                    {
-                        <div class="text-sm text-gray-800 whitespace-pre-wrap">@message.Content</div>
-                    }
+                @if (message.Role == "tool")
+                {
+                    <ToolResultDisplay 
+                        ToolCallId="@(message.OtherData?.TryGetValue("tool_call_id", out var toolCallIdEl) == true ? toolCallIdEl.GetString() : null)"
+                        TextResult="@message.Content"
+                        IsError="false" />
+                }
+                else
+                {
+                    <div class="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-xs font-medium px-2 py-1 rounded @GetRoleClass(message.Role)">
+                                @message.Role
+                            </span>
+                        </div>
+                        
+                        @if (!string.IsNullOrEmpty(message.Content))
+                        {
+                            <div class="text-sm text-gray-800 whitespace-pre-wrap">@message.Content</div>
+                        }
                     else if (message.ContentParts != null)
                     {
                         <div class="space-y-2">
@@ -34,23 +43,21 @@
                                         <span>Image content</span>
                                     </div>
                                 }
-                                else if (part.Type == "tool_use")
+                                else if (part.Type == "tool_use" && part.OtherData != null)
                                 {
-                                    <div class="flex items-center gap-2 text-sm text-gray-600">
-                                        <i class="icon-ic_fluent_wrench_20_regular"></i>
-                                        <span>Tool use: @(part.OtherData?.TryGetValue("name", out var nameEl) == true ? nameEl.GetString() : "unknown")</span>
-                                    </div>
+                                    <ToolCallDisplay 
+                                        Name="@(part.OtherData.TryGetValue("name", out var nameEl) ? nameEl.GetString() ?? "unknown" : "unknown")"
+                                        Id="@(part.OtherData.TryGetValue("id", out var idEl) ? idEl.GetString() ?? "" : "")"
+                                        Arguments="@(part.OtherData.TryGetValue("input", out var inputEl) ? inputEl : null)"
+                                        Result="@null" />
                                 }
                                 else if (part.Type == "tool_result")
                                 {
-                                    <div class="flex items-center gap-2 text-sm text-gray-600">
-                                        <i class="icon-ic_fluent_checkmark_circle_20_regular"></i>
-                                        <span>Tool result</span>
-                                        @if (!string.IsNullOrEmpty(part.Text))
-                                        {
-                                            <span class="text-gray-800">: @part.Text</span>
-                                        }
-                                    </div>
+                                    <ToolResultDisplay 
+                                        ToolCallId="@(part.OtherData?.TryGetValue("tool_use_id", out var toolUseIdEl) == true ? toolUseIdEl.GetString() : null)"
+                                        TextResult="@part.Text"
+                                        JsonResult="@(part.OtherData?.TryGetValue("content", out var contentEl) == true && string.IsNullOrEmpty(part.Text) ? contentEl : null)"
+                                        IsError="@(part.OtherData?.TryGetValue("is_error", out var isErrorEl) == true && isErrorEl.GetBoolean())" />
                                 }
                                 else
                                 {
@@ -66,33 +73,16 @@
                         <div class="mt-3 space-y-2">
                             @foreach (var toolCall in message.ToolCalls)
                             {
-                                <div class="border border-blue-200 rounded-lg p-3 bg-blue-50">
-                                    <div class="flex items-center gap-2 mb-2">
-                                        <i class="icon-ic_fluent_wrench_20_regular text-blue-600"></i>
-                                        <span class="text-sm font-medium text-blue-900">@toolCall.Name</span>
-                                        <span class="text-xs text-blue-600">(@toolCall.Id)</span>
-                                    </div>
-                                    
-                                    @if (toolCall.Arguments != null)
-                                    {
-                                        <div class="mt-2">
-                                            <div class="text-xs font-medium text-gray-600 mb-1">Arguments:</div>
-                                            <pre class="text-xs bg-white p-2 rounded border border-gray-200 overflow-x-auto">@FormatJson(toolCall.Arguments.Value)</pre>
-                                        </div>
-                                    }
-                                    
-                                    @if (!string.IsNullOrEmpty(toolCall.Result))
-                                    {
-                                        <div class="mt-2">
-                                            <div class="text-xs font-medium text-gray-600 mb-1">Result:</div>
-                                            <div class="text-sm text-gray-800 whitespace-pre-wrap">@toolCall.Result</div>
-                                        </div>
-                                    }
-                                </div>
+                                <ToolCallDisplay 
+                                    Name="@toolCall.Name"
+                                    Id="@toolCall.Id"
+                                    Arguments="@toolCall.Arguments"
+                                    Result="@toolCall.Result" />
                             }
                         </div>
                     }
-                </div>
+                    </div>
+                }
             }
         </div>
         
@@ -102,29 +92,11 @@
             <div class="mt-3 space-y-2">
                 @foreach (var toolCall in ParsedData.ToolCalls.Where(tc => !ParsedData.Messages.Any(m => m.ToolCalls?.Contains(tc) == true)))
                 {
-                    <div class="border border-blue-200 rounded-lg p-3 bg-blue-50">
-                        <div class="flex items-center gap-2 mb-2">
-                            <i class="icon-ic_fluent_wrench_20_regular text-blue-600"></i>
-                            <span class="text-sm font-medium text-blue-900">@toolCall.Name</span>
-                            <span class="text-xs text-blue-600">(@toolCall.Id)</span>
-                        </div>
-                        
-                        @if (toolCall.Arguments != null)
-                        {
-                            <div class="mt-2">
-                                <div class="text-xs font-medium text-gray-600 mb-1">Arguments:</div>
-                                <pre class="text-xs bg-white p-2 rounded border border-gray-200 overflow-x-auto">@FormatJson(toolCall.Arguments.Value)</pre>
-                            </div>
-                        }
-                        
-                        @if (!string.IsNullOrEmpty(toolCall.Result))
-                        {
-                            <div class="mt-2">
-                                <div class="text-xs font-medium text-gray-600 mb-1">Result:</div>
-                                <div class="text-sm text-gray-800 whitespace-pre-wrap">@toolCall.Result</div>
-                            </div>
-                        }
-                    </div>
+                    <ToolCallDisplay 
+                        Name="@toolCall.Name"
+                        Id="@toolCall.Id"
+                        Arguments="@toolCall.Arguments"
+                        Result="@toolCall.Result" />
                 }
             </div>
         }
@@ -150,15 +122,4 @@
         };
     }
     
-    private string FormatJson(JsonElement element)
-    {
-        try
-        {
-            return JsonSerializer.Serialize(element, new JsonSerializerOptions { WriteIndented = true });
-        }
-        catch
-        {
-            return element.ToString();
-        }
-    }
 }

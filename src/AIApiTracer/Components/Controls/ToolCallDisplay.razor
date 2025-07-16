@@ -1,0 +1,44 @@
+@using System.Text.Json
+
+<div class="border border-blue-200 rounded-lg p-3 bg-blue-50">
+    <div class="flex items-center gap-2 mb-2">
+        <i class="icon-ic_fluent_wrench_20_regular text-blue-600"></i>
+        <span class="text-sm font-medium text-blue-900">@Name</span>
+        <span class="text-xs text-blue-600">(@Id)</span>
+    </div>
+    
+    @if (Arguments != null)
+    {
+        <div class="mt-2">
+            <div class="text-xs font-medium text-gray-600 mb-1">Arguments:</div>
+            <pre class="text-xs bg-white p-2 rounded border border-gray-200 overflow-x-auto">@FormatJson(Arguments.Value)</pre>
+        </div>
+    }
+    
+    @if (!string.IsNullOrEmpty(Result))
+    {
+        <div class="mt-2">
+            <div class="text-xs font-medium text-gray-600 mb-1">Result:</div>
+            <div class="text-sm text-gray-800 whitespace-pre-wrap bg-white p-2 rounded border border-gray-200">@Result</div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Name { get; set; } = string.Empty;
+    [Parameter] public string Id { get; set; } = string.Empty;
+    [Parameter] public JsonElement? Arguments { get; set; }
+    [Parameter] public string? Result { get; set; }
+    
+    private string FormatJson(JsonElement element)
+    {
+        try
+        {
+            return JsonSerializer.Serialize(element, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            return element.ToString();
+        }
+    }
+}

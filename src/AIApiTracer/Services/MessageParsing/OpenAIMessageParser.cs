@@ -175,6 +175,21 @@ public class OpenAIMessageParser : BaseMessageParser
             }
         }
 
+        // Extract other properties (like tool_call_id for tool messages)
+        var knownFields = new HashSet<string> { "role", "content", "tool_calls" };
+        var otherData = new Dictionary<string, JsonElement>();
+        foreach (var property in messageElement.EnumerateObject())
+        {
+            if (!knownFields.Contains(property.Name))
+            {
+                otherData[property.Name] = property.Value.Clone();
+            }
+        }
+        if (otherData.Count > 0)
+        {
+            message.OtherData = otherData;
+        }
+
         return message;
     }
 
