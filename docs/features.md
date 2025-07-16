@@ -22,6 +22,8 @@
 - Automatically extracts model names from responses
 - Displays token usage (input, output, total)
 - Shows cached token count (for supported providers only)
+- Displays rate limit information (remaining/limit for tokens and requests)
+- Shows rate limit reset time for supported providers (e.g., Anthropic)
 
 ## 6. UI Monitoring
 - Real-time trace display (auto-refresh every 2 seconds)
@@ -31,3 +33,14 @@
   - Tab switching between General (always visible), Request, and Response
   - Copy buttons for each section
   - Fixed height (90vh) scrollable layout
+
+## 7. Message and Tool Call Display
+- Parses and displays AI API messages in a structured format
+- Unified display for tool calls (function calls) across providers:
+  - OpenAI tool_calls displayed with blue background
+  - Anthropic tool_use displayed with the same blue style
+- Unified display for tool results:
+  - OpenAI tool messages (role="tool") displayed with green background
+  - Anthropic tool_result displayed with the same green style
+- Automatic integration of tool calls with their parent messages
+- Support for streaming SSE responses with tool calls
