@@ -25,7 +25,7 @@ jobs:
     name: Build and Run tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: Cysharp/Actions/.github/actions/checkout@main
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - run: dotnet test -c Release
 
@@ -36,7 +36,7 @@ jobs:
       matrix:
         rid: [win-x64, win-arm64, linux-x64, linux-arm64, osx-arm64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: Cysharp/Actions/.github/actions/checkout@main
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - name: Publish Executable
         run:  dotnet publish src/AIApiTracer -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -o ./publish/${{ matrix.rid }}
