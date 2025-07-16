@@ -12,10 +12,6 @@ on:
         default: false
         type: boolean
 
-permissions:
-  contents: read
-  packages: write
-
 env:
   REGISTRY_GHCR: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -23,7 +19,11 @@ env:
 jobs:
   build-container:
     name: Build and Publish
-    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
       - name: Login to GitHub Container Registry
@@ -51,7 +51,10 @@ jobs:
 
   publish-executables:
     name: Publish Executables
-    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     strategy:
       matrix:
         rid: [win-x64, win-arm64, linux-x64, linux-arm64, osx-arm64]
