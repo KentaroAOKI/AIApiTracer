@@ -23,21 +23,27 @@ on:
 jobs:
   build-and-test:
     name: Build and Run tests
-    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: Cysharp/Actions/.github/actions/checkout@main
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - run: dotnet test -c Release
 
   publish-executables:
     name: Publish Executables
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     strategy:
       matrix:
         rid: [win-x64, win-arm64, linux-x64, linux-arm64, osx-arm64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: Cysharp/Actions/.github/actions/checkout@main
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - name: Publish Executable
         run:  dotnet publish src/AIApiTracer -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -o ./publish/${{ matrix.rid }}
