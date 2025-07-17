@@ -9,7 +9,20 @@ using AIApiTracer.Transformers;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.ResponseCompression;
 
-var builder = WebApplication.CreateBuilder(args);
+// Configure content root for published applications
+// Check if running from development environment (VS, Rider, dotnet run)
+var commandLineArgs = Environment.GetCommandLineArgs();
+var isRunningFromDll = commandLineArgs.Length > 0 && commandLineArgs[0].EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
+
+// Create builder with appropriate options
+var builder = isRunningFromDll
+    ? WebApplication.CreateBuilder(args)
+    : WebApplication.CreateBuilder(new WebApplicationOptions
+    {
+        Args = args,
+        ContentRootPath = AppContext.BaseDirectory,
+        WebRootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot")
+    });
 
 // Configure options
 builder.Services.Configure<AIApiTracerOptions>(
