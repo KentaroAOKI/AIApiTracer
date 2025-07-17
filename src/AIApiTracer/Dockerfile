@@ -1,5 +1,5 @@
 # Base image with multi-platform support
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
+FROM --platform=$TARGETPLATFORM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
 WORKDIR /app
 EXPOSE 8080
 
@@ -25,7 +25,7 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     dotnet publish -a $TARGETARCH -o /app/publish src/AIApiTracer/AIApiTracer.csproj
 
 # Build runtime image
-FROM base AS runtime
+FROM --platform=$TARGETPLATFORM base AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "AIApiTracer.dll"]
