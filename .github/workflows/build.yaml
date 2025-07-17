@@ -34,7 +34,7 @@ jobs:
 
   publish-executables:
     name: Publish Executables
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
     runs-on: ubuntu-24.04
@@ -59,7 +59,7 @@ jobs:
 
   publish-executables-macos:
     name: Publish Executables for macOS
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
     runs-on: macos-latest
