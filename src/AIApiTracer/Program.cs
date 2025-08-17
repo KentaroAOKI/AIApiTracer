@@ -91,6 +91,9 @@ builder.Services.AddSingleton<IMessageParser, OpenAIMessageParser>();
 builder.Services.AddSingleton<IMessageParser, AnthropicMessageParser>();
 builder.Services.AddSingleton<IMessageParserFactory, MessageParserFactory>();
 
+// Add HAR export service
+builder.Services.AddSingleton<IHarExportService, HarExportService>();
+
 // Add YARP
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))

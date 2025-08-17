@@ -38,6 +38,14 @@ You can download and run the pre-built application from the [Releases](https://g
 ./AIApiTracer --urls http://localhost:8080/
 ```
 
+#### How to build a local Docker image
+
+You can build a Docker image locally.
+
+```bash
+docker build -f src/AIApiTracer/Dockerfile -t aiapitracer .
+```
+
 ### 2. Open in your browser
 Once started, you can view request traces by accessing `http://localhost:8080` in your web browser.
 

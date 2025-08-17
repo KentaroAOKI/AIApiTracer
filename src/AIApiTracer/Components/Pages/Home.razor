@@ -4,6 +4,8 @@
 @using AIApiTracer.Services.MessageParsing
 @inject IApiTraceService ApiTraceService
 @inject IMessageParserFactory MessageParserFactory
+@inject IHarExportService HarExportService
+@inject IJSRuntime JSRuntime
 @implements IDisposable
 
 <PageTitle>AI API Tracer</PageTitle>
@@ -20,6 +22,10 @@
                 <button class="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" @onclick="RefreshTraces">
                     <i class="icon-ic_fluent_arrow_sync_20_regular mr-1.5 text-base"></i>
                     Refresh
+                </button>
+                <button class="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" @onclick="ExportToHar">
+                    <i class="icon-ic_fluent_document_arrow_down_20_regular mr-1.5 text-base"></i>
+                    Export HAR
                 </button>
                 <button class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500" @onclick="ClearTraces">
                     <i class="icon-ic_fluent_delete_20_regular mr-1.5 text-base"></i>
@@ -465,6 +471,17 @@
     {
         ApiTraceService.ClearTraces();
         RefreshTraces();
+    }
+
+    private async Task ExportToHar()
+    {
+        if (!_traces.Any())
+            return;
+
+        var harJson = HarExportService.ExportToHarJson(_traces);
+        var fileName = $"api-trace-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}.har";
+        
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, harJson, "application/json");
     }
 
     private void ShowDetails(ApiTraceRecord trace)

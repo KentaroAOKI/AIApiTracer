@@ -8,6 +8,7 @@
 - Captures all API requests and responses
 - Records headers, body, status codes, and execution time
 - Stores up to 1000 traces in-memory
+- Export trace data in HAR format
 
 ## 3. Security Features
 - Automatic API key masking (e.g., sk-foo******qux)
